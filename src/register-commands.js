@@ -1,4 +1,4 @@
-const{ REST, Routes, ApplicationCommandOptionType} = require('discord.js');
+const{ REST, Routes, ApplicationCommandOptionType, SlashCommandBuilder} = require('discord.js');
 require('dotenv').config();
 
 
@@ -8,8 +8,16 @@ const commands = [ // tableau qui contient chaque commande avec description json
         description:"fais un embed",
     },
     {
-        name : 'commande2',
-        description:"fais un truc j'ai pas encore décidé",
+        name : 'byechannel',
+        description:"Donne le salon dans lequel on dira ciao",
+        options:[
+            {
+                name: "channel",
+                description :"channel dans lequel le bot dira au-revoir",
+                type:ApplicationCommandOptionType.Channel,
+                required:false,
+            }
+        ],
     },
     {
         name:"addition",
@@ -54,7 +62,7 @@ const rest = new REST({version:"10"}).setToken(process.env.TOKEN);
         await rest.put(
             Routes.applicationGuildCommands(
                 process.env.CLIENT_ID,
-                process.env.SDM_ID
+                process.env.PINKSTRAW_ID,
             ),
             {body: commands}
         );

@@ -1,6 +1,6 @@
 require('dotenv').config();
 const moment = require('moment');
-const {Client, IntentsBitField, EmbedBuilder, ActivityType} = require('discord.js');
+const {Client, IntentsBitField, EmbedBuilder, ActivityType, ApplicationCommandOptionType, ApplicationCommand} = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -9,17 +9,78 @@ const client = new Client({
         IntentsBitField.Flags.GuildMessages,
         IntentsBitField.Flags.MessageContent,
         IntentsBitField.Flags.GuildPresences,
+        IntentsBitField.Flags.GuildIntegrations,
     ],
 });
 
+const commands = [ // tableau qui contient chaque commande avec description
+    {
+        name : 'pfc',
+        description:"envoie une requête pour faire un pierre-feuille-ciseaux avec quelqu'un",
+        options:[{
+            name:"adversaire",
+            description:"pseudo de ton adversaire",
+            type:ApplicationCommandOptionType.User,
+            required: true,
+        }]
+    },
+    {
+        name : 'byechannel',
+        description:"Donne le salon dans lequel on dira ciao",
+        options:[
+            {
+                name: "channel",
+                description :"channel dans lequel le bot dira au-revoir",
+                type:ApplicationCommandOptionType.Channel,
+                required:false,
+            }
+        ],
+    },
+    {
+        name:"addition",
+        description:"tout est dans le titre",
+        options: [
+            {
+                name:"nombre1",
+                description:"bah le premier nombre",
+                type: ApplicationCommandOptionType.Number,
+                choices: [
+                    {
+                        name: 'one',
+                        value: 1,
+                    },
+                    {
+                        name: 'two',
+                        value: 2,
+                    },
+                    {
+                        name: 'three',
+                        value: 3,
+                    },
+                ],
+                required: true,
+            },
+            {
+                name:"nombre2",
+                description:"bah le deuxième nombre",
+                type: ApplicationCommandOptionType.Number,
+                required: true,
+            }
+        ],
+    }
+];
 
+let ciaoChannel = null;
 
 client.on('ready',(c) => {
+
     console.log(c.user.tag + " is online ");
     client.user.setActivity({
         name: 'Modère les mauvaises fraises',
         type: ActivityType.Playing,
     });
+
+    client.application.commands.set(commands);
 });
 
 client.on('messageCreate', (message) => {
@@ -35,26 +96,33 @@ client.on('messageCreate', (message) => {
 client.on('interactionCreate', (interaction) => {
     if(!interaction.isChatInputCommand()) return;
 
-    if(interaction.commandName === "commande1"){
-        const embed = new EmbedBuilder()
-        .setTitle("Titre Embed")
-        .setDescription("EmbedDescription")
-        .setColor('Random')
-        .addFields({
-            name : "Field Title",
-            value:"test",
-            inline:true
-        })
-        .addFields({
-            name : "Field Title 2",
-            value:"test 2",
-            inline:true
-        });
+    if(interaction.commandName === "pfc"){
+        opponentId = interaction.options.get("adversaire").value;
+        console.log(interaction.channelId); // id du salon depuis lequel on envoie la commande
+        //console.log(client.channels.cache.get(interaction.channelId).name);
+        let sendChannel = interaction.channelId;
 
-        interaction.reply({ embeds: [embed] });
+        let sender = interaction.member.user.username
+
+        const pfcDefy = new EmbedBuilder()
+        .setColor(0x800080)
+        .setTitle("Une fraise sauvage t'a défié à un pierre feuille ciseaux")
+        .setAuthor({
+            name: 'Pink Bot',
+            iconURL:'https://media.discordapp.net/attachments/1122936379626754138/1130582116061692034/86EA913E-B670-4019-B4C2-F07A2158DC57.png?width=468&height=468',
+            url: 'https://linktr.ee/pink.strawberries'
+        })
+        .setDescription(sender.charAt(0).toUpperCase() + sender.slice(1) + (" t'a défié au pierre feuille ciseaux. Souhaites-tu accepter ce défi ?"))
+        .setThumbnail('https://i1.sndcdn.com/artworks-cYInJFs7iFhj2ost-azODGQ-t500x500.jpg')
+        .setTimestamp()
+        .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
+
+        client.channels.cache.get(sendChannel).send({content:`<@${opponentId}>`, embeds: [pfcDefy]});
     }
-    if(interaction.commandName === "commande2"){
-        interaction.reply("oui celle la aussi ne fait rien bien vu");
+    if(interaction.commandName === "byechannel"){
+        ciaoChannel = interaction.options.get("channel").value;
+        interaction.reply("Je dirai au revoir dans le salon " + client.channels.cache.get(ciaoChannel).name + ".");
+
     }
     if(interaction.commandName === "addition"){
         const num1 = interaction.options.get("nombre1").value;
@@ -117,7 +185,6 @@ client.on('interactionCreate', async (interaction) =>{
 });
 
 client.on('guildMemberRemove',(l) => {
-    let channelLeave = client.channels.cache.get('1129454745757683722')
 
     const leaverEmbed = new EmbedBuilder()
         .setColor(0x800080)
@@ -134,9 +201,9 @@ client.on('guildMemberRemove',(l) => {
         )
         .setImage('https://i.pinimg.com/564x/34/54/f2/3454f20167afe26b0fa59635ae801b76.jpg')
         .setTimestamp()
-        .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜', iconURL:'https://i.pinimg.com/564x/a3/e1/e7/a3e1e775bedae1116f560f7d96b87ca3.jpg'});
+        .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
 
-    channelLeave.send({embeds: [leaverEmbed]});
+    ciaoChannel.send({embeds: [leaverEmbed]});
 })
 
 client.login(process.env.TOKEN);
