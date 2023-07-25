@@ -91,33 +91,40 @@ client.on('messageCreate', (message) => {
             message.reply("Salut");
         } 
     }
-})
+});
 
-client.on('interactionCreate', (interaction) => {
+client.on('interactionCreate', async (interaction) => {
     if(!interaction.isChatInputCommand()) return;
 
     if(interaction.commandName === "pfc"){
-        opponentId = interaction.options.get("adversaire").value;
-        console.log(interaction.channelId); // id du salon depuis lequel on envoie la commande
-        //console.log(client.channels.cache.get(interaction.channelId).name);
-        let sendChannel = interaction.channelId;
+        try{
+            opponentId = interaction.options.get("adversaire").value;
+            console.log(interaction.channelId); // id du salon depuis lequel on envoie la commande
+            //console.log(client.channels.cache.get(interaction.channelId).name);
+            let sendChannel = interaction.channelId;
 
-        let sender = interaction.member.user.username
+            let sender = interaction.member.user.username
 
-        const pfcDefy = new EmbedBuilder()
-        .setColor(0x800080)
-        .setTitle("Une fraise sauvage t'a défié à un pierre feuille ciseaux")
-        .setAuthor({
-            name: 'Pink Bot',
-            iconURL:'https://media.discordapp.net/attachments/1122936379626754138/1130582116061692034/86EA913E-B670-4019-B4C2-F07A2158DC57.png?width=468&height=468',
-            url: 'https://linktr.ee/pink.strawberries'
-        })
-        .setDescription(sender.charAt(0).toUpperCase() + sender.slice(1) + (" t'a défié au pierre feuille ciseaux. Souhaites-tu accepter ce défi ?"))
-        .setThumbnail('https://i1.sndcdn.com/artworks-cYInJFs7iFhj2ost-azODGQ-t500x500.jpg')
-        .setTimestamp()
-        .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
+            const pfcDefy = new EmbedBuilder()
+            .setColor(0x800080)
+            .setTitle("Une fraise sauvage t'a défié au pierre feuille ciseaux")
+            .setAuthor({
+                name: 'Pink Bot',
+                iconURL:'https://media.discordapp.net/attachments/1122936379626754138/1130582116061692034/86EA913E-B670-4019-B4C2-F07A2158DC57.png?width=468&height=468',
+                url: 'https://linktr.ee/pink.strawberries'
+            })
+            .setDescription(sender.charAt(0).toUpperCase() + sender.slice(1) + (" t'a défié au pierre feuille ciseaux. Souhaites-tu accepter ce défi ?"))
+            .setThumbnail('https://i1.sndcdn.com/artworks-cYInJFs7iFhj2ost-azODGQ-t500x500.jpg')
+            .setTimestamp()
+            .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
 
-        client.channels.cache.get(sendChannel).send({content:`<@${opponentId}>`, embeds: [pfcDefy]});
+            const embedPfc = await client.channels.cache.get(sendChannel).send({content:`<@${opponentId}>`, embeds: [pfcDefy]});
+
+            await embedPfc.react(`👍`);
+            await embedPfc.react("👎");
+        }catch(e){
+            client.channels.cache.get(sendChannel).send("il y a eu une erreur, logs:" + e);
+        }
     }
     if(interaction.commandName === "byechannel"){
         ciaoChannel = interaction.options.get("channel").value;
