@@ -1,6 +1,7 @@
 require('dotenv').config();
+const fs = require('fs');
 const moment = require('moment');
-const {Client, IntentsBitField, EmbedBuilder, ActivityType, ApplicationCommandOptionType, ApplicationCommand} = require('discord.js');
+const {Client, IntentsBitField, EmbedBuilder, ActivityType, ApplicationCommandOptionType, ApplicationCommand, ApplicationCommandType} = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -10,6 +11,7 @@ const client = new Client({
         IntentsBitField.Flags.MessageContent,
         IntentsBitField.Flags.GuildPresences,
         IntentsBitField.Flags.GuildIntegrations,
+        IntentsBitField.Flags.GuildMessageReactions,
     ],
 });
 
@@ -32,9 +34,19 @@ const commands = [ // tableau qui contient chaque commande avec description
                 name: "channel",
                 description :"channel dans lequel le bot dira au-revoir",
                 type:ApplicationCommandOptionType.Channel,
-                required:false,
+                required:true,
             }
         ],
+    },
+    {
+        name : 'joinrole',
+        description:"spécifie un rôle à donner aux membres quand ils rejoignent le serveur",
+        options:[{
+            name:"role",
+            description:"rôle à donner",
+            type:ApplicationCommandOptionType.Role,
+            required: true,
+        }]
     },
     {
         name:"addition",
@@ -70,7 +82,11 @@ const commands = [ // tableau qui contient chaque commande avec description
     }
 ];
 
-let ciaoChannel = null;
+let ciaoChannel;
+
+let currentGuild;
+
+let rolesToGive = [];
 
 client.on('ready',(c) => {
 
@@ -90,6 +106,7 @@ client.on('messageCreate', (message) => {
         if(message.content === "salut" || message.content === "Salut"){
             message.reply("Salut");
         } 
+        currentGuild = message.guild.id;
     }
 });
 
@@ -99,9 +116,10 @@ client.on('interactionCreate', async (interaction) => {
     if(interaction.commandName === "pfc"){
         try{
             opponentId = interaction.options.get("adversaire").value;
-            console.log(interaction.channelId); // id du salon depuis lequel on envoie la commande
+            console.log(opponentId); // id du salon depuis lequel on envoie la commande
             //console.log(client.channels.cache.get(interaction.channelId).name);
             let sendChannel = interaction.channelId;
+            let accept = false;
 
             let sender = interaction.member.user.username
 
@@ -118,25 +136,124 @@ client.on('interactionCreate', async (interaction) => {
             .setTimestamp()
             .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
 
-            const embedPfc = await client.channels.cache.get(sendChannel).send({content:`<@${opponentId}>`, embeds: [pfcDefy]});
+            //const embedPfc = await 
+            
+            /*--------------------------------------------------------------------
+                tentative infructueuse de choper les réactions
+            
+            
+            client.channels.cache.get(sendChannel).send({
+                content:`<@${opponentId}>`, embeds: [pfcDefy]
+            }).then((embedPfc)=>{
+                embedPfc.react(`👍`)
+                embedPfc.react(`👎`)
 
-            await embedPfc.react(`👍`);
-            await embedPfc.react("👎");
+                const collectorFilter = (reaction, user) => {
+                    return [`👍`, `👎`].includes(reaction.emoji.name) && user.id === opponentId;
+                }
+
+                console.log(opponentId)
+                return embedPfc.awaitReactions({ collectorFilter, time: 10000, errors: ['time'] })
+            }).then((collected)=>{
+                const reaction = collected.first();
+
+                if (reaction.emoji.name === `👍`) {
+                    console.log("test positif");
+                    embedPfc.reply('You reacted with a thumbs up.');
+                } else {
+                    embedPfc.reply('You reacted with a thumbs down.');
+                }
+            })
+            .catch(collected => {
+                embedPfc.reply('You reacted with neither a thumbs up, nor a thumbs down.');
+                console.log('erreur');
+            });
+
+        ----------------------------------------------------------------------------------------
+        */
+
+            const embedPfc =await client.channels.cache.get(sendChannel).send({
+                content:`<@${opponentId}>, tu as 5 minutes pour répondre à la requête de pierre feuille ciseaux`, embeds: [pfcDefy]
+            });
+
+            Promise.all([
+                embedPfc.react('👍'),
+                embedPfc.react('👎'),
+            ])
+                .catch(error => console.error("Un emoji n'est pas passé", error));
+                
+            const collectorFilter = (reaction, user) => {
+                return ['👍', '👎'].includes(reaction.emoji.name) && user.id === interaction.user.id;
+            };
+
+            embedPfc.awaitReactions({ filter: collectorFilter, max: 1, time: 300000, errors: ['time'] })
+            .then(collected => {
+                const reaction = collected.first();
+
+                if (reaction.emoji.name === '👍') {
+                    embedPfc.reply('Pierre feuille ciseau accepté');
+                    accept = true;
+                } else {
+                    embedPfc.reply('Pierre feuille ciseau refusé');
+                }
+            })
+            .catch(collected => {
+                embedPfc.reply("Tu n'as pas réagi dans le temps imparti, aucun pierre feuille ciseau n'a été lancé");
+            });
+
+            if(accept){
+                const pm1 = interaction.author.send("Il faut maintenant choisir une option pour ton pierre feuille ciseaux contre " + sender +", réagis à ce message avec ce que tu veux utiliser comme élément");
+                Promise.all([
+                    embedPfc.react(''),
+                    embedPfc.react('👎'),
+                ])
+            }
         }catch(e){
-            client.channels.cache.get(sendChannel).send("il y a eu une erreur, logs:" + e);
+            console.log("il y a eu une erreur, logs:" + e);
         }
     }
     if(interaction.commandName === "byechannel"){
-        ciaoChannel = interaction.options.get("channel").value;
-        interaction.reply("Je dirai au revoir dans le salon " + client.channels.cache.get(ciaoChannel).name + ".");
 
+        const jsonDatas = JSON.parse(fs.readFileSync('leaveChannels.json'));
+        //const map = new Map(Object.entries(jsonDatas));
+        if(jsonDatas.maps[interaction.guild.id]==null){
+            //interaction.deferReply();
+            ciaoChannel = interaction.options.get("channel").value;
+
+            let map1 = new Map();
+            map1.set(interaction.guild.id,ciaoChannel);
+
+            var obj = Object.fromEntries(map1);
+            var jsonString = JSON.stringify(obj);
+    
+            const data = fs.readFileSync('leaveChannels.json'); // lis la data dans le json 
+            const jsonData = JSON.parse(data); // parse le json et le transforme en objet js 
+    
+            jsonData.maps[interaction.guild.id] = ciaoChannel;
+            fs.writeFileSync('leaveChannels.json', JSON.stringify(jsonData));
+
+            interaction.reply("Je dirai au revoir dans le salon " + client.channels.cache.get(ciaoChannel).name + ".");
+        }else{
+            console.log(jsonDatas.maps[interaction.guild.id]);
+            interaction.reply("Un salon de ce serveur est déjà défini comme salon de au-revoir.");
+        }
+    }
+    if(interaction.commandName === "joinrole"){
+        rolesToGive.push(interaction.options.get("role").id);
+        console.log(interaction.options.get("role").role.name);
+        console.log(rolesToGive);
+        interaction.reply("Le rôle " + interaction.options.get("role").value + " sera donné à chaque nouvel arrivant.");
     }
     if(interaction.commandName === "addition"){
         const num1 = interaction.options.get("nombre1").value;
         const num2 = interaction.options.get("nombre2").value;
         interaction.reply(`${num1+num2}`);
     }
-})
+});
+
+// client.on("guildMemberAdd", (event)=>{
+//     console.log(event);
+// })
 
 client.on("messageCreate", (message) =>{
     if(message.content === "embed"){
@@ -190,11 +307,41 @@ client.on('interactionCreate', async (interaction) =>{
         console.log(e);
     }
 });
+client.fetchGuildPreview;
+
+client.on('guildMemberAdd', async (add) => {
+     try{
+
+        const roleOne = "1129560890614751314";
+        const roleTwo = "1129560970784686210";
+        const roleThree = "1129561059750068327";
+        const roleFour = "1129561146790256650";
+        const roleFive = "1129565391853723689";
+        const roleSix = "1129567121299492964";
+
+        if(!roleOne || !roleTwo || !roleThree || !roleFour || !roleFive || !roleSix){
+            console.log("role inexistant");
+        }
+        
+        await interaction.member.roles.add(roleOne);
+        await interaction.member.roles.add(roleTwo);
+        await interaction.member.roles.add(roleThree);
+        await interaction.member.roles.add(roleFour);
+        await interaction.member.roles.add(roleFive);
+        await interaction.member.roles.add(roleSix);
+    } catch(e){
+        console.log(e);
+    }
+});
 
 client.on('guildMemberRemove',(l) => {
 
+    const jsonDataLeave = JSON.parse(fs.readFileSync('leaveChannels.json'));
+
+    if(jsonDataLeave.maps[currentGuild] == null) return;
+
     const leaverEmbed = new EmbedBuilder()
-        .setColor(0x800080)
+        .setColor(0xF31641)
         .setTitle("Une fraise a été récoltée et quitte la serre")
         .setAuthor({
             name: 'Pink Bot',
@@ -210,7 +357,9 @@ client.on('guildMemberRemove',(l) => {
         .setTimestamp()
         .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
 
-    ciaoChannel.send({embeds: [leaverEmbed]});
-})
+    //const map = new Map(Object.entries(JSON.parse(fs.readFileSync('leaveChannels.json'))));
+
+    client.channels.cache.get(jsonDataLeave.maps[currentGuild]).send({embeds: [leaverEmbed]});
+});
 
 client.login(process.env.TOKEN);
