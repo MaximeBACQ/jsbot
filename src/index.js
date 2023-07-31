@@ -356,8 +356,6 @@ client.on('guildMemberRemove',(l) => {
         .setTimestamp()
         .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
 
-    //const map = new Map(Object.entries(JSON.parse(fs.readFileSync('leaveChannels.json'))));
-
     client.channels.cache.get(jsonDataLeave.maps[currentGuild]).send({embeds: [leaverEmbed]});
 });
 
