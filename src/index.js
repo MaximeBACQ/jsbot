@@ -307,7 +307,6 @@ client.on('interactionCreate', async (interaction) =>{
         console.log(e);
     }
 });
-client.fetchGuildPreview;
 
 client.on('guildMemberAdd', async (add) => {
      try{
