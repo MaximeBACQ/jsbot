@@ -308,26 +308,26 @@ client.on('interactionCreate', async (interaction) =>{
     }
 });
 
-client.on('guildMemberAdd', async (add) => {
+client.on('guildMemberAdd', async (added) => {
      try{
 
-        const roleOne = "1129560890614751314";
-        const roleTwo = "1129560970784686210";
+        //const roleOne = "1129560890614751314";
+        //const roleTwo = "1129560970784686210";
         const roleThree = "1129561059750068327";
         const roleFour = "1129561146790256650";
         const roleFive = "1129565391853723689";
         const roleSix = "1129567121299492964";
 
-        if(!roleOne || !roleTwo || !roleThree || !roleFour || !roleFive || !roleSix){
+        if(!roleThree || !roleFour || !roleFive || !roleSix){
             console.log("role inexistant");
         }
         
-        await interaction.member.roles.add(roleOne);
-        await interaction.member.roles.add(roleTwo);
-        await interaction.member.roles.add(roleThree);
-        await interaction.member.roles.add(roleFour);
-        await interaction.member.roles.add(roleFive);
-        await interaction.member.roles.add(roleSix);
+        // await added.roles.add(roleOne);
+        // await added.roles.add(roleTwo);
+        await added.roles.add(roleThree);
+        await added.roles.add(roleFour);
+        await added.roles.add(roleFive);
+        await added.roles.add(roleSix);
     } catch(e){
         console.log(e);
     }
