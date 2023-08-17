@@ -2,6 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const moment = require('moment');
 const {Client, IntentsBitField, EmbedBuilder, ActivityType, ApplicationCommandOptionType, ApplicationCommand, ApplicationCommandType} = require('discord.js');
+const { userInfo } = require('os');
 
 const client = new Client({
     intents: [
@@ -12,6 +13,7 @@ const client = new Client({
         IntentsBitField.Flags.GuildPresences,
         IntentsBitField.Flags.GuildIntegrations,
         IntentsBitField.Flags.GuildMessageReactions,
+        IntentsBitField.Flags.MessageContent,
     ],
 });
 
@@ -114,14 +116,19 @@ client.on('interactionCreate', async (interaction) => {
     if(!interaction.isChatInputCommand()) return;
 
     if(interaction.commandName === "pfc"){
+        opponentId = interaction.options.get("adversaire").value;
+        if(opponentId === interaction.member.user.id){
+            interaction.reply(" Lance pas des games contre toi-même idiot ");
+            return;
+        }
         try{
-            opponentId = interaction.options.get("adversaire").value;
-            console.log(opponentId); // id du salon depuis lequel on envoie la commande
+            let opponentChoice;
+            let senderChoice;
+            
             //console.log(client.channels.cache.get(interaction.channelId).name);
             let sendChannel = interaction.channelId;
-            let accept = false;
-
             let sender = interaction.member.user.username
+            let reactions = false;
 
             const pfcDefy = new EmbedBuilder()
             .setColor(0x800080)
@@ -136,78 +143,109 @@ client.on('interactionCreate', async (interaction) => {
             .setTimestamp()
             .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
 
-            //const embedPfc = await 
-            
-            /*--------------------------------------------------------------------
-                tentative infructueuse de choper les réactions
-            
-            
-            client.channels.cache.get(sendChannel).send({
-                content:`<@${opponentId}>`, embeds: [pfcDefy]
-            }).then((embedPfc)=>{
-                embedPfc.react(`👍`)
-                embedPfc.react(`👎`)
-
-                const collectorFilter = (reaction, user) => {
-                    return [`👍`, `👎`].includes(reaction.emoji.name) && user.id === opponentId;
-                }
-
-                console.log(opponentId)
-                return embedPfc.awaitReactions({ collectorFilter, time: 10000, errors: ['time'] })
-            }).then((collected)=>{
-                const reaction = collected.first();
-
-                if (reaction.emoji.name === `👍`) {
-                    console.log("test positif");
-                    embedPfc.reply('You reacted with a thumbs up.');
-                } else {
-                    embedPfc.reply('You reacted with a thumbs down.');
-                }
+            await interaction.reply({
+                content:"Ta demande de pierre feuille ciseaux a été envoyée.",
+                ephemeral:true,
             })
-            .catch(collected => {
-                embedPfc.reply('You reacted with neither a thumbs up, nor a thumbs down.');
-                console.log('erreur');
-            });
-
-        ----------------------------------------------------------------------------------------
-        */
 
             const embedPfc =await client.channels.cache.get(sendChannel).send({
                 content:`<@${opponentId}>, tu as 5 minutes pour répondre à la requête de pierre feuille ciseaux`, embeds: [pfcDefy]
             });
 
-            Promise.all([
+            await Promise.all([
                 embedPfc.react('👍'),
                 embedPfc.react('👎'),
             ])
                 .catch(error => console.error("Un emoji n'est pas passé", error));
                 
             const collectorFilter = (reaction, user) => {
-                return ['👍', '👎'].includes(reaction.emoji.name) && user.id === interaction.user.id;
+                return ['👍', '👎'].includes(reaction.emoji.name) && user.id === opponentId;
             };
 
-            embedPfc.awaitReactions({ filter: collectorFilter, max: 1, time: 300000, errors: ['time'] })
+            await embedPfc.awaitReactions({ filter: collectorFilter, max: 1, time: 30000, errors: ['time'] })
             .then(collected => {
                 const reaction = collected.first();
 
                 if (reaction.emoji.name === '👍') {
-                    embedPfc.reply('Pierre feuille ciseau accepté');
-                    accept = true;
-                } else {
-                    embedPfc.reply('Pierre feuille ciseau refusé');
+                    //embedPfc.reply('Pierre feuille ciseau accepté');
+                    reactions = true;
+
+                    pfcDefy.setTitle("Jeu en cours, choix du joueur défié")
+                    .setDescription(`<@${opponentId}>, choisis ce que tu veux jouer`);
+                    
+                    embedPfc.edit({embeds:[pfcDefy]});
+                }else{
+                    embedPfc.reply('Pierre feuille ciseau refusé, jeu annulé.');
                 }
             })
             .catch(collected => {
-                embedPfc.reply("Tu n'as pas réagi dans le temps imparti, aucun pierre feuille ciseau n'a été lancé");
+                embedPfc.reply(`Ton adversaire n'a pas répondu à ta demande dans le temps imparti, jeu annulé.`);
             });
 
-            if(accept){
-                const pm1 = interaction.author.send("Il faut maintenant choisir une option pour ton pierre feuille ciseaux contre " + sender +", réagis à ce message avec ce que tu veux utiliser comme élément");
-                Promise.all([
-                    embedPfc.react(''),
-                    embedPfc.react('👎'),
-                ])
-            }
+            if(!reactions) return;
+            reactions = false;
+
+            await embedPfc.reactions.removeAll();
+            await Promise.all([
+                embedPfc.react('🪨'),
+                embedPfc.react('📄'),
+                embedPfc.react('✂️'),
+            ])
+            
+            const collectorFilter2 = (reaction, user) => {
+                return ['🪨', '📄','✂️'].includes(reaction.emoji.name) && user.id === opponentId;
+            };
+
+            await embedPfc.awaitReactions({ filter: collectorFilter2, max: 1, time: 15000, errors: ['time'] })
+            .then(collected => {
+                opponentChoice = collected.first();
+                reactions = true;
+
+                pfcDefy.setTitle("Jeu en cours, choix du joueur défiant")
+                .setDescription(`<@${interaction.member.user.id}>, choisis ce que tu veux jouer`);
+
+                embedPfc.edit({embeds:[pfcDefy]});
+            })
+            .catch(collected => {
+                embedPfc.reply(`<@${opponentId}> n'a pas fait de choix dans les temps impartis, le gagnant est ${sender}`);
+            });
+
+            if(!reactions) return;
+            reactions = false;
+
+            await embedPfc.reactions.removeAll();
+            await Promise.all([
+                embedPfc.react('🪨'),
+                embedPfc.react('📄'),
+                embedPfc.react('✂️'),
+            ])
+            
+            const collectorFilter3 = (reaction, user) => {
+                return ['🪨', '📄','✂️'].includes(reaction.emoji.name) && user.id === interaction.member.user.id;
+            };
+
+            await embedPfc.awaitReactions({ filter: collectorFilter3, max: 1, time: 15000, errors: ['time'] })
+            .then(collected => {
+                senderChoice = collected.first();
+                reactions = true;
+
+                pfcDefy.setTitle("Jeu terminé.");
+                console.log(senderChoice + opponentChoice);
+                if(senderChoice =='🪨' && opponentChoice =='📄' ||senderChoice == '📄' && opponentChoice == '✂️'||senderChoice == '✂️' && opponentChoice == '🪨'){
+                    pfcDefy.setDescription(`<@${opponentId}> opponent a gagné.`);
+                }else if(senderChoice == '🪨' && opponentChoice == '✂️' ||senderChoice =='📄' && opponentChoice =='🪨'||senderChoice == '✂️' && opponentChoice == '📄'){
+                    pfcDefy.setDescription(`<@${interaction.member.user.id}> sender a gagné.`);
+                }else{
+                    pfcDefy.setDescription(`Match nul.`);
+                }
+
+                embedPfc.edit({embeds:[pfcDefy]});
+            })
+            .catch(collected => {
+                embedPfc.reply(`<@${opponentId}> n'a pas fait de choix dans les temps impartis, le gagnant est ${sender}`);
+            });
+
+            await embedPfc.reactions.removeAll();
         }catch(e){
             console.log("il y a eu une erreur, logs:" + e);
         }
