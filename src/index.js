@@ -1,7 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const moment = require('moment');
-const {Client, IntentsBitField, EmbedBuilder, ActivityType, ApplicationCommandOptionType, ApplicationCommand, ApplicationCommandType} = require('discord.js');
+const {Client, IntentsBitField, EmbedBuilder, ButtonStyle, ActivityType, ApplicationCommandOptionType, ApplicationCommand, ApplicationCommandType, ButtonBuilder, ActionRowBuilder} = require('discord.js');
 const { userInfo } = require('os');
 
 const client = new Client({
@@ -116,18 +116,60 @@ client.on('interactionCreate', async (interaction) => {
     if(!interaction.isChatInputCommand()) return;
 
     if(interaction.commandName === "pfc"){
+        let sender = interaction.member.user
         opponentId = interaction.options.get("adversaire").value;
-        if(opponentId === interaction.member.user.id){
-            interaction.reply(" Lance pas des games contre toi-même idiot ");
+        if(opponentId === sender.id){
+            interaction.reply(" Lance pas des games contre toi-même mongolo ");
             return;
         }
+        if(client.users.cache.get(opponentId).bot){
+            interaction.reply(" Lance pas des games contre un bot espèce deeeee de golmon là ");
+        }
         try{
-            let opponentChoice;
-            let senderChoice;
-            
+            let accept = false;
+            //----------------------------------------------------------//
+            // éléments pour accepter ou non le pfc // 
+            const answer = [
+                {name:'accepter', emoji:'👍', style:ButtonStyle.Success},
+                {name:'refuser', emoji:'👎', style:ButtonStyle.Danger}
+            ]
+
+            const choiceButtons = answer.map((answer)=>{
+                return new ButtonBuilder()
+                .setCustomId(answer.name)
+                .setLabel(answer.name)
+                .setStyle(answer.style)
+                .setEmoji(answer.emoji)
+            })
+
+            const choiceRow = new ActionRowBuilder()
+            .addComponents(choiceButtons);
+            //----------------------------------------------------------//
+
+            //----------------------------------------------------------//
+            // éléments de jeu du pfc //
+
+            const choices =[
+                {name: 'pierre', emoji: '🪨', beats: 'ciseaux'},
+                {name: 'feuille', emoji: '📄', beats: 'pierre'},
+                {name: 'ciseaux', emoji: '✂️', beats: 'feuille'},
+            ]; // chaque choix de jeu
+
+            const buttons = choices.map((choice)=>{
+                return new ButtonBuilder()              // retourne un nouveau tableau avec les boutons mappés depuis le tableau choice
+                .setCustomId(choice.name)
+                .setLabel(choice.name)
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji(choice.emoji)                                    
+            })
+
+            const row = new ActionRowBuilder()
+			.addComponents(buttons);
+            //----------------------------------------------------------//
+
+            let choiceName;            
             //console.log(client.channels.cache.get(interaction.channelId).name);
             let sendChannel = interaction.channelId;
-            let sender = interaction.member.user.username
             let reactions = false;
 
             const pfcDefy = new EmbedBuilder()
@@ -138,114 +180,123 @@ client.on('interactionCreate', async (interaction) => {
                 iconURL:'https://media.discordapp.net/attachments/1122936379626754138/1130582116061692034/86EA913E-B670-4019-B4C2-F07A2158DC57.png?width=468&height=468',
                 url: 'https://linktr.ee/pink.strawberries'
             })
-            .setDescription(sender.charAt(0).toUpperCase() + sender.slice(1) + (" t'a défié au pierre feuille ciseaux. Souhaites-tu accepter ce défi ?"))
-            .setThumbnail('https://i1.sndcdn.com/artworks-cYInJFs7iFhj2ost-azODGQ-t500x500.jpg')
+            .setDescription(sender.username.charAt(0).toUpperCase() + sender.username.slice(1) + (" t'a défié au pierre feuille ciseaux. Souhaites-tu accepter ce défi ?"))
+            .setThumbnail('https://cdn.discordapp.com/attachments/904863149369491527/1141866328936943746/strawb.jpg')
             .setTimestamp()
             .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
 
-            await interaction.reply({
-                content:"Ta demande de pierre feuille ciseaux a été envoyée.",
-                ephemeral:true,
-            })
+            // await interaction.reply({
+            //     content:"Ta demande de pierre feuille ciseaux a été envoyée.",
+            //     ephemeral:true,
+            // })
 
-            const embedPfc =await client.channels.cache.get(sendChannel).send({
-                content:`<@${opponentId}>, tu as 5 minutes pour répondre à la requête de pierre feuille ciseaux`, embeds: [pfcDefy]
+            //const embedPfc = await client.channels.cache.get(sendChannel).send({
+            const embedPfc = await interaction.reply({
+                content:`<@${opponentId}>, tu as 30 secondes pour répondre à la requête de pierre feuille ciseaux`, embeds: [pfcDefy], components:[choiceRow]
             });
 
-            await Promise.all([
-                embedPfc.react('👍'),
-                embedPfc.react('👎'),
-            ])
-                .catch(error => console.error("Un emoji n'est pas passé", error));
-                
-            const collectorFilter = (reaction, user) => {
-                return ['👍', '👎'].includes(reaction.emoji.name) && user.id === opponentId;
-            };
-
-            await embedPfc.awaitReactions({ filter: collectorFilter, max: 1, time: 30000, errors: ['time'] })
-            .then(collected => {
-                const reaction = collected.first();
-
-                if (reaction.emoji.name === '👍') {
-                    //embedPfc.reply('Pierre feuille ciseau accepté');
-                    reactions = true;
-
-                    pfcDefy.setTitle("Jeu en cours, choix du joueur défié")
-                    .setDescription(`<@${opponentId}>, choisis ce que tu veux jouer`);
-                    
-                    embedPfc.edit({embeds:[pfcDefy]});
-                }else{
-                    embedPfc.reply('Pierre feuille ciseau refusé, jeu annulé.');
-                }
+            const responseChoice = await embedPfc.awaitMessageComponent({ 
+                filter: (user)=>user.user.id === opponentId,
+                time: 30000,
             })
-            .catch(collected => {
-                embedPfc.reply(`Ton adversaire n'a pas répondu à ta demande dans le temps imparti, jeu annulé.`);
+            .catch(async (error) => {
+                pfcDefy
+                .setTitle("Partie de pierre feuille ciseaux annulée")
+                .setDescription(`Ton adversaire n'a pas répondu à ta demande dans le temps imparti, jeu annulé.`);
+                await embedPfc.edit({content:"Bah bravo je te félicite pas ", embeds:[pfcDefy], components:[]});
             });
 
-            if(!reactions) return;
-            reactions = false;
+            if(!responseChoice) return;
 
-            await embedPfc.reactions.removeAll();
-            await Promise.all([
-                embedPfc.react('🪨'),
-                embedPfc.react('📄'),
-                embedPfc.react('✂️'),
-            ])
+            const answerName = answer.find(
+                (answer)=>answer.name === responseChoice.customId
+            );
             
-            const collectorFilter2 = (reaction, user) => {
-                return ['🪨', '📄','✂️'].includes(reaction.emoji.name) && user.id === opponentId;
-            };
+            if(answerName.name === 'accepter'){
 
-            await embedPfc.awaitReactions({ filter: collectorFilter2, max: 1, time: 15000, errors: ['time'] })
-            .then(collected => {
-                opponentChoice = collected.first();
-                reactions = true;
+                accept = true;
+                await pfcDefy
+                .setTitle("Partie de pierre feuille ciseaux en cours")
+                .setDescription(`C'est au tour de ` + client.users.cache.get(opponentId).username);
 
-                pfcDefy.setTitle("Jeu en cours, choix du joueur défiant")
-                .setDescription(`<@${interaction.member.user.id}>, choisis ce que tu veux jouer`);
+                await responseChoice.reply({
+                    content:`Tu viens d'accepter le pierre feuille ciseaux`,
+                    ephemeral:true,
+                })
+                embedPfc.edit({content:`<@${opponentId}>`, embeds:[pfcDefy], components:[row]});
+            }
 
-                embedPfc.edit({embeds:[pfcDefy]});
+            if(answerName.name === 'refuser'){
+                pfcDefy
+                .setTitle("Jeu annulé")
+                .setDescription("Le pierre feuille ciseaux a été refusé.");
+
+                await embedPfc.edit({
+                    content:"",
+                    embeds:[pfcDefy],
+                    components:[]
+                });
+
+                await responseChoice.reply({
+                    content:`Tu viens de refuser le pierre feuille ciseaux`,
+                    ephemeral:true,
+                })
+            }
+
+            if(!accept)return;
+
+            const opponentChoice = await embedPfc.awaitMessageComponent({ 
+                filter: (user)=>user.user.id === opponentId,
+                time: 15000,
             })
-            .catch(collected => {
-                embedPfc.reply(`<@${opponentId}> n'a pas fait de choix dans les temps impartis, le gagnant est ${sender}`);
+            .catch(async (error) => {
+                pfcDefy.setTitle("Partie de pierre feuille ciseaux annulée")
+                pfcDefy.setDescription(`Ton adversaire n'a pas répondu à ta demande dans le temps imparti, jeu annulé.`);
+                await embedPfc.edit({embeds:[pfcDefy], components:[]});
             });
 
-            if(!reactions) return;
-            reactions = false;
+            if(!opponentChoice) return;
 
-            await embedPfc.reactions.removeAll();
-            await Promise.all([
-                embedPfc.react('🪨'),
-                embedPfc.react('📄'),
-                embedPfc.react('✂️'),
-            ])
+            await opponentChoice.update({});
+
+            const opponentChoiceName = choices.find(
+                (choices)=>choices.name === opponentChoice.customId
+            );
+
+            pfcDefy.setDescription(`C'est maintenant au tour de ${sender.username}`);
+            await embedPfc.edit({embeds:[pfcDefy]});
+
+            const senderChoice = await embedPfc.awaitMessageComponent({ 
+                filter: (user)=>user.user.id === sender.id,
+                time: 15000,
+            })
+            .catch(async (error) => {
+                pfcDefy.setTitle("Partie de pierre feuille ciseaux annulée")
+                pfcDefy.setDescription(`Ton adversaire n'a pas répondu à ta demande dans le temps imparti, jeu annulé.`);
+                await embedPfc.edit({embeds:[pfcDefy], components:[]});
+            });
+
+            if(!senderChoice)return;
+
+            await senderChoice.update({});
+
+            const senderChoiceName = choices.find(
+                (choices)=>choices.name === senderChoice.customId
+            );
+
+            if(senderChoiceName.name === opponentChoiceName.beats){
+                pfcDefy.setDescription(`${client.users.cache.get(opponentId).username} a gagné la partie ! Il avait choisi :` + opponentChoiceName.emoji + `, ${sender.username} avait choisi :` + senderChoiceName.emoji);
+            } 
+            if(senderChoiceName.beats === opponentChoiceName.name){
+                pfcDefy.setDescription(`${sender.username} a gagné la partie ! Il avait choisi` + senderChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+            } 
+            if(senderChoiceName.name === opponentChoiceName.name){
+                pfcDefy.setDescription('Match nul ! Les deux joueurs avaient choisi : ' + senderChoiceName.emoji);
+            }
             
-            const collectorFilter3 = (reaction, user) => {
-                return ['🪨', '📄','✂️'].includes(reaction.emoji.name) && user.id === interaction.member.user.id;
-            };
+            pfcDefy.setTitle("La partie est terminée");
+            await embedPfc.edit({content:"",embeds:[pfcDefy],components:[]});
 
-            await embedPfc.awaitReactions({ filter: collectorFilter3, max: 1, time: 15000, errors: ['time'] })
-            .then(collected => {
-                senderChoice = collected.first();
-                reactions = true;
-
-                pfcDefy.setTitle("Jeu terminé.");
-                console.log(senderChoice + opponentChoice);
-                if(senderChoice =='🪨' && opponentChoice =='📄' ||senderChoice == '📄' && opponentChoice == '✂️'||senderChoice == '✂️' && opponentChoice == '🪨'){
-                    pfcDefy.setDescription(`<@${opponentId}> opponent a gagné.`);
-                }else if(senderChoice == '🪨' && opponentChoice == '✂️' ||senderChoice =='📄' && opponentChoice =='🪨'||senderChoice == '✂️' && opponentChoice == '📄'){
-                    pfcDefy.setDescription(`<@${interaction.member.user.id}> sender a gagné.`);
-                }else{
-                    pfcDefy.setDescription(`Match nul.`);
-                }
-
-                embedPfc.edit({embeds:[pfcDefy]});
-            })
-            .catch(collected => {
-                embedPfc.reply(`<@${opponentId}> n'a pas fait de choix dans les temps impartis, le gagnant est ${sender}`);
-            });
-
-            await embedPfc.reactions.removeAll();
         }catch(e){
             console.log("il y a eu une erreur, logs:" + e);
         }
@@ -314,37 +365,37 @@ client.on("messageCreate", (message) =>{
     }
 })
 
-client.on('interactionCreate', async (interaction) =>{
-    try{
-        if(!interaction.isButton()) return;
+// client.on('interactionCreate', async (interaction) =>{
+//     try{
+//         if(!interaction.isButton()) return;
 
-        await interaction.deferReply({
-            ephemeral: true,
-        });
+//         await interaction.deferReply({
+//             ephemeral: true,
+//         });
 
-        const role = interaction.guild.roles.cache.get(interaction.customId);
-        if(!role){
-            interaction.editReply({
-                content: "Rôle indisponible"
-            })
-            return;
-        }
+//         const role = interaction.guild.roles.cache.get(interaction.customId);
+//         if(!role){
+//             interaction.editReply({
+//                 content: "Rôle indisponible"
+//             })
+//             return;
+//         }
 
-        const hasRole = interaction.member.roles.cache.has(role.id);
+//         const hasRole = interaction.member.roles.cache.has(role.id);
 
-        if(hasRole){
-            await interaction.member.roles.remove(role);
-            await interaction.editReply(`Le rôle ${role} a été retiré`);
-            return;
-        }
+//         if(hasRole){
+//             await interaction.member.roles.remove(role);
+//             await interaction.editReply(`Le rôle ${role} a été retiré`);
+//             return;
+//         }
         
 
-        await interaction.member.roles.add(role);
-        await interaction.editReply(`Le rôle ${role} a été ajouté`);
-    } catch(e){
-        console.log(e);
-    }
-});
+//         await interaction.member.roles.add(role);
+//         await interaction.editReply(`Le rôle ${role} a été ajouté`);
+//     } catch(e){
+//         console.log(e);
+//     }
+// });
 
 client.on('guildMemberAdd', async (added) => {
      try{
