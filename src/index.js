@@ -231,7 +231,7 @@ client.on('interactionCreate', async (interaction) => {
                     content:`Tu viens d'accepter le pierre feuille ciseaux`,
                     ephemeral:true,
                 })
-                embedPfc.edit({content:`<@${opponentId}>`, embeds:[pfcDefy], components:[row]});
+                embedPfc.edit({content:`<@${sender.username}>`, embeds:[pfcDefy], components:[row]});
             }
 
             if(answerName.name === 'refuser'){
@@ -271,7 +271,7 @@ client.on('interactionCreate', async (interaction) => {
                 (choices)=>choices.name === opponentChoice.customId
             );
 
-            pfcDefy.setDescription(`C'est maintenant au tour de ${client.users.cache.get(opponentId).username}`);
+            pfcDefy.setDescription(`C'est maintenant au tour de ${sender.username}`);
             await embedPfc.edit({embeds:[pfcDefy]});
 
             const senderChoice = await embedPfc.awaitMessageComponent({ 
