@@ -14,6 +14,14 @@ const client = new Client({
         IntentsBitField.Flags.GuildIntegrations,
         IntentsBitField.Flags.GuildMessageReactions,
         IntentsBitField.Flags.MessageContent,
+        IntentsBitField.Flags.AutoModerationExecution,
+        IntentsBitField.Flags.AutoModerationConfiguration,
+        IntentsBitField.Flags.DirectMessageReactions,
+        IntentsBitField.Flags.DirectMessageTyping,
+        IntentsBitField.Flags.DirectMessages,
+        IntentsBitField.Flags.GuildEmojisAndStickers,
+        IntentsBitField.Flags.GuildIntegrations,
+        IntentsBitField.Flags.GuildInvites,
     ],
 });
 
@@ -118,10 +126,10 @@ client.on('interactionCreate', async (interaction) => {
     if(interaction.commandName === "pfc"){
         let sender = interaction.member.user
         opponentId = interaction.options.get("adversaire").value;
-        if(opponentId === sender.id){
-            interaction.reply(" Lance pas des games contre toi-même mongolo ");
-            return;
-        }
+        // if(opponentId === sender.id){
+        //     interaction.reply(" Lance pas des games contre toi-même mongolo ");
+        //     return;
+        // }
         if(client.users.cache.get(opponentId).bot){
             interaction.reply(" Lance pas des games contre un bot espèce deeeee de golmon là ");
         }
@@ -263,7 +271,7 @@ client.on('interactionCreate', async (interaction) => {
                 (choices)=>choices.name === opponentChoice.customId
             );
 
-            pfcDefy.setDescription(`C'est maintenant au tour de ${sender.username}`);
+            pfcDefy.setDescription(`C'est maintenant au tour de ${client.users.cache.get(opponentId).username}`);
             await embedPfc.edit({embeds:[pfcDefy]});
 
             const senderChoice = await embedPfc.awaitMessageComponent({ 
@@ -285,10 +293,22 @@ client.on('interactionCreate', async (interaction) => {
             );
 
             if(senderChoiceName.name === opponentChoiceName.beats){
-                pfcDefy.setDescription(`${client.users.cache.get(opponentId).username} a gagné la partie ! Il avait choisi :` + opponentChoiceName.emoji + `, ${sender.username} avait choisi :` + senderChoiceName.emoji);
-            } 
+                if(interaction.member.roles.cache.has('1129565608342716616')){
+                    pfcDefy.setDescription(`${sender.username} a perdu la partie ! Elle avait choisi :` + senderChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+                }else if(interaction.member.roles.cache.has('1129565878585925704')){
+                    pfcDefy.setDescription(`${sender.username} a perdu la partie ! Il avait choisi :` + senderChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+                }else{
+                    pfcDefy.setDescription(`${sender.username} a perdu la partie ! Son choix était :` + opponentChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+                }
+            }
             if(senderChoiceName.beats === opponentChoiceName.name){
-                pfcDefy.setDescription(`${sender.username} a gagné la partie ! Il avait choisi` + senderChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+                if(interaction.member.roles.cache.has('1129565608342716616')){
+                    pfcDefy.setDescription(`${sender.username} a gagné la partie ! Elle avait choisi :` + senderChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+                }else if(interaction.member.roles.cache.has('1129565878585925704')){
+                    pfcDefy.setDescription(`${sender.username} a gagné la partie ! Il avait choisi :` + senderChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+                }else{
+                    pfcDefy.setDescription(`${sender.username} a gagné la partie ! caca avait choisi` + senderChoiceName.emoji + `, ${client.users.cache.get(opponentId).username} avait choisi :` + opponentChoiceName.emoji);
+                }
             } 
             if(senderChoiceName.name === opponentChoiceName.name){
                 pfcDefy.setDescription('Match nul ! Les deux joueurs avaient choisi : ' + senderChoiceName.emoji);
