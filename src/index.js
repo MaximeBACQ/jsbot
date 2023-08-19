@@ -231,7 +231,7 @@ client.on('interactionCreate', async (interaction) => {
                     content:`Tu viens d'accepter le pierre feuille ciseaux`,
                     ephemeral:true,
                 })
-                embedPfc.edit({content:`<@${sender.username}>`, embeds:[pfcDefy], components:[row]});
+                embedPfc.edit({content:`<@${sender}>`, embeds:[pfcDefy], components:[row]});
             }
 
             if(answerName.name === 'refuser'){
