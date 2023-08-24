@@ -2,10 +2,26 @@ const{ REST, Routes, ApplicationCommandOptionType, SlashCommandBuilder} = requir
 require('dotenv').config();
 
 
-const commands = [ // tableau qui contient chaque commande avec description json style
+const commands = [ // tableau qui contient chaque commande avec description
     {
-        name : 'commande1',
-        description:"fais un embed",
+        name : 'pfc',
+        description:"envoie une requête pour faire un pierre-feuille-ciseaux avec quelqu'un",
+        options:[{
+            name:"adversaire",
+            description:"pseudo de ton adversaire",
+            type:ApplicationCommandOptionType.User,
+            required: true,
+        }]
+    },
+    {
+        name : 'battleship',
+        description:"démarre une partie de bataille navale",
+        options:[{
+            name:"adversaire",
+            description:"pseudo de ton adversaire",
+            type:ApplicationCommandOptionType.User,
+            required: true,
+        }]
     },
     {
         name : 'byechannel',
@@ -15,9 +31,19 @@ const commands = [ // tableau qui contient chaque commande avec description json
                 name: "channel",
                 description :"channel dans lequel le bot dira au-revoir",
                 type:ApplicationCommandOptionType.Channel,
-                required:false,
+                required:true,
             }
         ],
+    },
+    {
+        name : 'joinrole',
+        description:"spécifie un rôle à donner aux membres quand ils rejoignent le serveur",
+        options:[{
+            name:"role",
+            description:"rôle à donner",
+            type:ApplicationCommandOptionType.Role,
+            required: true,
+        }]
     },
     {
         name:"addition",
@@ -59,13 +85,8 @@ const rest = new REST({version:"10"}).setToken(process.env.TOKEN);
     try{
         console.log("Les slash commands s'enregistrent yahoo");
 
-        await rest.put(
-            Routes.applicationGuildCommands(
-                process.env.CLIENT_ID,
-                process.env.PINKSTRAW_ID,
-            ),
-            {body: commands}
-        );
+        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
+
 
         console.log("C bon c fait yahoo")
     }catch (e){

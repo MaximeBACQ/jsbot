@@ -1,7 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const moment = require('moment');
-const {Client, IntentsBitField, EmbedBuilder, ButtonStyle, ActivityType, ApplicationCommandOptionType, ApplicationCommand, ApplicationCommandType, ButtonBuilder, ActionRowBuilder} = require('discord.js');
+const {Client,GuildChannelManager, IntentsBitField, EmbedBuilder, ButtonStyle, ActivityType, ApplicationCommandOptionType, ApplicationCommand, ApplicationCommandType, ButtonBuilder, ActionRowBuilder, Guild} = require('discord.js');
 const { userInfo } = require('os');
 
 const client = new Client({
@@ -33,6 +33,22 @@ const commands = [ // tableau qui contient chaque commande avec description
             name:"adversaire",
             description:"pseudo de ton adversaire",
             type:ApplicationCommandOptionType.User,
+            required: true,
+        }]
+    },
+    {
+        name : 'battleship',
+        description:"démarre une partie de bataille navale",
+        options:[{
+            name:"adversaire",
+            description:"pseudo de ton adversaire",
+            type:ApplicationCommandOptionType.User,
+            required: true,
+        },
+        {
+            name:"category",
+            description:"catégorie dans laquelle le salon de combat sera crée",
+            type:ApplicationCommandOptionType.Channel,
             required: true,
         }]
     },
@@ -126,15 +142,16 @@ client.on('interactionCreate', async (interaction) => {
     if(interaction.commandName === "pfc"){
         let sender = interaction.member.user
         opponentId = interaction.options.get("adversaire").value;
-        // if(opponentId === sender.id){
-        //     interaction.reply(" Lance pas des games contre toi-même mongolo ");
-        //     return;
-        // }
+        if(opponentId === sender.id){
+            interaction.reply(" Lance pas des games contre toi-même mongolo ");
+            return;
+        }
         if(client.users.cache.get(opponentId).bot){
             interaction.reply(" Lance pas des games contre un bot espèce deeeee de golmon là ");
         }
         try{
             let accept = false;
+            // TODO : create an acceptGame(sender,opponent) function to avoid this code duplication
             //----------------------------------------------------------//
             // éléments pour accepter ou non le pfc // 
             const answer = [
@@ -319,6 +336,136 @@ client.on('interactionCreate', async (interaction) => {
 
         }catch(e){
             console.log("il y a eu une erreur, logs:" + e);
+        }
+    }
+    if(interaction.commandName === "battleship"){
+        let sender = interaction.member.user
+        opponentId = interaction.options.get("adversaire").value;
+        // if(opponentId === sender.id){
+        //     interaction.reply(" Lance pas des games contre toi-même mongolo ");
+        //     return;
+        // }
+        if(client.users.cache.get(opponentId).bot){
+            interaction.reply(" Lance pas des games contre un bot espèce deeeee de golmon là ");
+        }
+        try{
+            let accept = false;
+            //----------------------------------------------------------//
+            // éléments pour accepter ou non le battleship // 
+            const answer = [
+                {name:'accepter', emoji:'👍', style:ButtonStyle.Success},
+                {name:'refuser', emoji:'👎', style:ButtonStyle.Danger}
+            ]
+
+            const choiceButtons = answer.map((answer)=>{
+                return new ButtonBuilder()
+                .setCustomId(answer.name)
+                .setLabel(answer.name)
+                .setStyle(answer.style)
+                .setEmoji(answer.emoji)
+            })
+
+            const choiceRow = new ActionRowBuilder()
+            .addComponents(choiceButtons);
+            //----------------------------------------------------------//
+
+            const defyEmbed = new EmbedBuilder()
+            .setColor(0x800080)
+            .setTitle("Une fraise sauvage t'a défié à la bataille navale")
+            .setAuthor({
+                name: 'Pink Bot',
+                iconURL:'https://media.discordapp.net/attachments/1122936379626754138/1130582116061692034/86EA913E-B670-4019-B4C2-F07A2158DC57.png?width=468&height=468',
+                url: 'https://linktr.ee/pink.strawberries'
+            })
+            .setDescription(sender.username.charAt(0).toUpperCase() + sender.username.slice(1) + (" t'a défié à la bataille navale. Souhaites-tu accepter ce défi ?"))
+            .setThumbnail('https://i.pinimg.com/564x/4a/f9/79/4af9792bd7292621eb31dd20bebc7b94.jpg')
+            .setTimestamp()
+            .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
+
+            let botAnswer = await interaction.reply({
+                content:`<@${opponentId}>, tu as 30 secondes pour répondre à cet affront.`, embeds:[defyEmbed], components:[choiceRow]
+            })
+
+            const responseChoice = await botAnswer.awaitMessageComponent({ 
+                filter: (user)=>user.user.id === opponentId,
+                time: 30000,
+            })
+            .catch(async (error) => {
+                defyEmbed
+                .setTitle("Partie de bataille navale annulée")
+                .setDescription(`Ton adversaire n'a pas répondu à ta demande dans le temps imparti, jeu annulé.`);
+                await botAnswer.edit({content:"Bah bravo je te félicite pas ", embeds:[defyEmbed], components:[]});
+            });
+
+            if(!responseChoice) return;
+
+            const answerName = answer.find(
+                (answer)=>answer.name === responseChoice.customId
+            );
+            
+            if(answerName.name === 'accepter'){
+
+                accept = true;
+                await defyEmbed
+                .setTitle("Un nouveau salon a été crée pour votre partie")
+                .setDescription("Plus aucune action à faire ici pour le moment.");
+
+                await responseChoice.reply({
+                    content:`Tu viens d'accepter la bataille navale`,
+                    ephemeral:true,
+                })
+                botAnswer.edit({content:``, embeds:[defyEmbed], components:[]});
+
+            }
+
+            if(answerName.name === 'refuser'){
+                defyEmbed
+                .setTitle("Jeu annulé")
+                .setDescription("La bataille navale a été annulée.");
+
+                await botAnswer.edit({
+                    content:"",
+                    embeds:[defyEmbed],
+                    components:[]
+                });
+
+                await responseChoice.reply({
+                    content:`Tu viens de refuser la bataille navale`,
+                    ephemeral:true,
+                })
+
+            }
+
+            if(!accept)return;
+
+            const battleChan = await interaction.guild.channels.create({name: `${sender.username} vs ${client.users.cache.get(opponentId).username}`, reason:'Bataille navale'});
+
+            await battleChan.setParent(interaction.options.get("category").value);
+
+            const placingMessage = battleChan.send({
+                content:`Vous allez maintenant placer vos bateaux, veuillez appuyer sur le bouton`, components:[new ButtonBuilder()
+                    .setCustomId('placer')
+                    .setLabel('placer')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('🫡')
+                ]
+            })
+
+            const placingButton = await placingMessage.awaitMessageComponent({ 
+                filter: (user)=>user.user.id === opponentId || sender.id,
+                time: 30000,
+            })
+            .catch(async (error) => {
+                defyEmbed
+                .setTitle("Partie de bataille navale annulée")
+                .setDescription(`Ton adversaire n'a pas répondu à ta demande dans le temps imparti, jeu annulé.`);
+                await botAnswer.edit({content:"Bah bravo je te félicite pas ", embeds:[defyEmbed], components:[]});
+            });
+            
+            
+        }catch(e){
+            console.log("Erreur avec la création de la bataille navale: " + e);
+            interaction.editReply("Impossible de lancer une partie de bataille navale.");
         }
     }
     if(interaction.commandName === "byechannel"){
