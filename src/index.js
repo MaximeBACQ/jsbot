@@ -442,13 +442,17 @@ client.on('interactionCreate', async (interaction) => {
 
             await battleChan.setParent(interaction.options.get("category").value);
 
-            const placingMessage = battleChan.send({
-                content:`Vous allez maintenant placer vos bateaux, veuillez appuyer sur le bouton`, components:[new ButtonBuilder()
-                    .setCustomId('placer')
-                    .setLabel('placer')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji('🫡')
-                ]
+            const buttonPlacing = new ButtonBuilder()
+            .setCustomId('placer')
+            .setLabel('placer')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('🫡');
+
+            const placingRow = new ActionRowBuilder()
+            .addComponents(buttonPlacing);
+
+            const placingMessage = await battleChan.send({
+                content:`Vous allez maintenant placer vos bateaux, veuillez appuyer sur le bouton`, components:[placingRow]
             })
 
             const placingButton = await placingMessage.awaitMessageComponent({ 
@@ -462,6 +466,61 @@ client.on('interactionCreate', async (interaction) => {
                 await botAnswer.edit({content:"Bah bravo je te félicite pas ", embeds:[defyEmbed], components:[]});
             });
             
+            var p1Field = Array.from(Array(11), () => new Array(11)); //tableau 10 par 10
+
+            // odd but I found no other way to assign strings
+            p1Field[0][0] = ":strawberry:";
+            p1Field[0][1] = ":zero:";
+            p1Field[0][2] = "1️⃣";
+            p1Field[0][3] = ":two:";
+            p1Field[0][4] = ":three:";
+            p1Field[0][5] = ":four:";
+            p1Field[0][6] = ":five:";
+            p1Field[0][7] = ":six:";
+            p1Field[0][8] = ":seven:";
+            p1Field[0][9] = ":eight:";
+            p1Field[0][10] = ":nine:";
+
+            p1Field[1][0] = ":regional_indicator_a:";
+            p1Field[2][0] = ":regional_indicator_b:";
+            p1Field[3][0] = ":regional_indicator_c:";
+            p1Field[4][0] = ":regional_indicator_d:";
+            p1Field[5][0] = ":regional_indicator_e:";
+            p1Field[6][0] = ":regional_indicator_f:";
+            p1Field[7][0] = ":regional_indicator_g:";
+            p1Field[8][0] = ":regional_indicator_h:";
+            p1Field[9][0] = ":regional_indicator_i:";
+            p1Field[10][0] = ":regional_indicator_j:";
+
+            for(var line = 1; line<=10; line++){
+                for(var column = 1; column <=10; column++){
+                    p1Field[line][column] = ":black_large_square:";
+                }
+            }
+            var p2Field = p1Field;
+
+            // let p1Grid = [[":zero:",":one:",":two:",":three:",":four:",":five:",":six:",":seven:",":eight:","nine"],
+            //     [":regional_indicator_A:",":white_large_square:"]        
+            // ];
+            const embed1 = new EmbedBuilder()
+            .setColor(0x800080)
+            .setTitle("Ton board")
+            .setAuthor({
+                name: 'Pink Bot',
+                iconURL:'https://media.discordapp.net/attachments/1122936379626754138/1130582116061692034/86EA913E-B670-4019-B4C2-F07A2158DC57.png?width=468&height=468',
+                url: 'https://linktr.ee/pink.strawberries'
+            })
+            .setDescription(`${p1Field}`)
+            .setThumbnail('https://i.pinimg.com/564x/4a/f9/79/4af9792bd7292621eb31dd20bebc7b94.jpg')
+            .setTimestamp()
+            .setFooter({text:'❀ 𝑷𝑰𝑵𝑲 ⭑ 𝒔𝒕𝒓𝒂𝒘𝒃𝒆𝒓𝒓𝒊𝒆𝒔 🍓 ❜'});
+
+            if(placingButton.customId === "placer"){
+                placingMessage.deferReply({ephemeral:true});
+                await placingMessage.reply({
+                    content: " Place tes bateaux !", embeds:[embed1], components:[], ephemeral:true
+                })
+            }
             
         }catch(e){
             console.log("Erreur avec la création de la bataille navale: " + e);
